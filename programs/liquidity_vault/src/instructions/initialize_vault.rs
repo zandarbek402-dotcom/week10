@@ -3,12 +3,14 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{constants::*, errors::VaultError, state::VaultConfig};
 
+// Accounts are boxed (heap): unboxed, try_accounts needed a >4096-byte
+// stack frame (SBF limit) and corrupted memory on-chain.
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    pub underlying_mint: Account<'info, Mint>,
+    pub underlying_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -17,7 +19,7 @@ pub struct InitializeVault<'info> {
         seeds = [CONFIG_SEED, underlying_mint.key().as_ref()],
         bump
     )]
-    pub config: Account<'info, VaultConfig>,
+    pub config: Box<Account<'info, VaultConfig>>,
 
     /// Share token: mint authority = config PDA, same decimals as underlying
     #[account(
@@ -28,7 +30,7 @@ pub struct InitializeVault<'info> {
         mint::decimals = underlying_mint.decimals,
         mint::authority = config,
     )]
-    pub share_mint: Account<'info, Mint>,
+    pub share_mint: Box<Account<'info, Mint>>,
 
     /// Vault treasury: token account owned by config PDA
     #[account(
@@ -39,7 +41,7 @@ pub struct InitializeVault<'info> {
         token::mint = underlying_mint,
         token::authority = config,
     )]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: Box<Account<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
